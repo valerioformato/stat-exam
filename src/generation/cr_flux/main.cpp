@@ -4,34 +4,73 @@
 
 // ROOT headers
 #include <TFile.h>
+#include <TH2D.h>
+#include <TList.h>
+#include <TRandom.h>
 #include <TTree.h>
 
+// external headers
+#include <fmt/format.h>
+
 // c++ headers
+#include <iostream>
 #include <memory>
 
 int main(int argc, char const *argv[]) {
-  auto outFile = std::make_unique<TFile>("cr_sample.root", "recreate");
+  auto outFile_data = std::make_unique<TFile>("cr_data.root", "recreate");
+  TTree *data_tree = new TTree("Data", "CR Data Tree");
 
-  TTree *sample_tree = new TTree("Data", "CR Sample Tree");
+  auto outFile_mc = std::make_unique<TFile>("cr_mc.root", "recreate");
+  TTree *mc_tree = new TTree("Data", "CR MC Tree");
 
-  float rigidity = 0;
-  sample_tree->Branch("rigidity", &rigidity);
+  float meas_rigidity = 0, gen_rigidity = 0;
+  data_tree->Branch("rigidity", &meas_rigidity);
+  mc_tree->Branch("meas_rigidity", &meas_rigidity);
+  mc_tree->Branch("gen_rigidity", &gen_rigidity);
 
   auto spectrum = Utils::GetSpectrum(1, 1);
+
+  auto livetimeFile = std::make_unique<TFile>("livetime.root", "open");
+  TH1D *livetime = static_cast<TH2D *>(livetimeFile->Get<TList>("ListLiveTime_rbinv5")->At(1))->ProjectionY();
+  livetime->Scale(1.0 / livetime->GetBinContent(livetime->GetNbinsX()));
 
   auto matFile = std::make_unique<TFile>("res_matrix.root", "open");
   Utils::ResolutionModel model{matFile->Get<TList>("parList_FS")};
 
-  unsigned long long nEvents = 10000000;
-  for (unsigned long long iEv = 0; iEv < nEvents; iEv++) {
-    // generate rigidity according to some spectrum
-    float trueRigidity = spectrum->GetRandom();
+  unsigned long long nEvents_data = 1000000, nEvents_mc = 5000000;
 
-    sample_tree->Fill();
+  for (unsigned long long iEv = 0; iEv < nEvents_data; iEv++) {
+    // generate rigidity according to some spectrum
+    gen_rigidity = spectrum->GetRandom();
+
+    if (gRandom->Uniform() > livetime->Interpolate(gen_rigidity)) {
+      iEv--;
+      continue;
+    }
+
+    meas_rigidity = model(gen_rigidity);
+
+    // fmt::print("Gen = {}, Meas = {}\n", gen_rigidity, meas_rigidity);
+
+    data_tree->Fill();
   }
 
-  outFile->cd();
-  spectrum.get()->Write();
-  sample_tree->Write();
+  for (unsigned long long iEv = 0; iEv < nEvents_mc; iEv++) {
+    // generate rigidity according to some spectrum
+    gen_rigidity = spectrum->GetRandom();
+    meas_rigidity = model(gen_rigidity);
+
+    // fmt::print("Gen = {}, Meas = {}\n", gen_rigidity, meas_rigidity);
+
+    mc_tree->Fill();
+  }
+
+  outFile_data->cd();
+  livetime->Write("LiveTime");
+  data_tree->Write();
+
+  outFile_mc->cd();
+  mc_tree->Write();
+
   return 0;
 }

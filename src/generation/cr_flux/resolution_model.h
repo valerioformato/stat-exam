@@ -1,5 +1,5 @@
-#include <TH1D.h>
 #include <TF1.h>
+#include <TH1D.h>
 #include <TList.h>
 
 namespace Utils {
@@ -12,9 +12,10 @@ public:
 
 private:
   void LoadParameters(double trueRigidity);
+  double GetRandom();
 
-  double model(double x, std::array<double, 7> p);
-  std::unique_ptr<TF1> m_fun;
+  std::array<double, 7> m_pars;
+  std::unique_ptr<TF1> m_expoFun;
 
   TH1D m_mean;
   TH1D m_sigma1;
