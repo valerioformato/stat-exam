@@ -20,7 +20,7 @@
 double AngRes(double p) {
   // in mrad
   double t1 = 1.5 / sqrt(p);
-  double t2 = 0.5;
+  double t2 = 0.7;
 
   // in rad
   return 1e-3 * sqrt(t1 * t1 + t2 * t2);
@@ -28,6 +28,7 @@ double AngRes(double p) {
 
 int main(int argc, char const *argv[]) {
   TH1D *hMass = new TH1D("hMass", "", 200, 0, 10);
+  TH1D *hMass_sigtrue = new TH1D("hMass_sigtrue", "", 200, 0, 10);
   TH2D *hMass_mc = new TH2D("hMass_mc", "", 200, 0, 10, 200, 0, 10);
 
   auto outFile_data = std::make_unique<TFile>("im_data.root", "recreate");
@@ -116,11 +117,10 @@ int main(int argc, char const *argv[]) {
     for (auto &muon : event.muons) {
       float gen_momentum = muon.Vect().Mag();
       float meas_momentum = model(muon.Vect().Mag());
-      // muon.SetTheta(muon.Theta() * gRandom->Gaus(1, AngRes(muon.E())));
-      // muon.SetE(sqrt(muMass * muMass + meas_momentum * meas_momentum));
+
       TVector3 p = muon.Vect();
       p *= meas_momentum / gen_momentum;
-      // p.SetTheta(p.Theta() * gRandom->Gaus(1, AngRes(muon.E())));
+      p.SetTheta(p.Theta() * gRandom->Gaus(1, AngRes(muon.E())));
       muon.SetVectM(p, muMass);
     }
     for (auto &jet : event.jets) {
@@ -174,10 +174,6 @@ int main(int argc, char const *argv[]) {
       float gen_momentum = muon.Vect().Mag();
       float meas_momentum = model(muon.Vect().Mag());
 
-      debug += fmt::format("{} -> {}\n", muon.Vect().Mag(), meas_momentum);
-
-      // muon.SetTheta(muon.Theta() * gRandom->Gaus(1, AngRes(muon.E())));
-      // muon.SetE(sqrt(muMass * muMass + meas_momentum * meas_momentum));
       TVector3 p = muon.Vect();
       p *= meas_momentum / gen_momentum;
       p.SetTheta(p.Theta() * gRandom->Gaus(1, AngRes(muon.E())));
@@ -197,7 +193,8 @@ int main(int argc, char const *argv[]) {
       fmt::print("+ Gen {} vs Meas {}\n{}", gen_mass, meas_mass, debug);
     }
 
-    hMass->Fill((event.muons[0] + event.muons[1]).Mag());
+    hMass->Fill(meas_mass);
+    hMass_sigtrue->Fill(gen_mass);
   }
 
   std::shuffle(begin(events), end(events), std::mt19937{std::random_device{}()});
@@ -249,10 +246,10 @@ int main(int argc, char const *argv[]) {
     for (auto &muon : event.muons) {
       float gen_momentum = muon.Vect().Mag();
       float meas_momentum = model(muon.Vect().Mag());
-      // muon.SetTheta(muon.Theta() * gRandom->Gaus(1, AngRes(muon.E())));
-      // muon.SetE(sqrt(muMass * muMass + meas_momentum * meas_momentum));
+
       TVector3 p = muon.Vect();
       p *= meas_momentum / gen_momentum;
+      p.SetTheta(p.Theta() * gRandom->Gaus(1, AngRes(muon.E())));
       muon.SetVectM(p, muMass);
     }
     for (auto &jet : event.jets) {
@@ -276,11 +273,12 @@ int main(int argc, char const *argv[]) {
 
   outFile_data->cd();
   data_tree->Write();
-  hMass->Write();
+  // hMass->Write();
+  // hMass_sigtrue->Write();
 
   outFile_mc->cd();
   mc_tree->Write();
-  hMass_mc->Write();
+  // hMass_mc->Write();
 
   return 0;
 }
