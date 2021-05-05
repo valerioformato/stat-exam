@@ -1,4 +1,5 @@
 // our headers
+#include "localization.h"
 #include "resolution_model.h"
 #include "spectrum.h"
 
@@ -30,11 +31,13 @@ int main(int argc, char const *argv[]) {
 
   auto spectrum = Utils::GetSpectrum(1, 1);
 
-  auto livetimeFile = std::make_unique<TFile>("livetime.root", "open");
+  auto livetimeFile =
+      std::make_unique<TFile>((localization::PROJECT_SOURCE_DIR + "/datafiles/cr_flux/livetime.root").c_str(), "open");
   TH1D *livetime = static_cast<TH2D *>(livetimeFile->Get<TList>("ListLiveTime_rbinv5")->At(1))->ProjectionY();
   livetime->Scale(1.0 / livetime->GetBinContent(livetime->GetNbinsX()));
 
-  auto matFile = std::make_unique<TFile>("res_matrix.root", "open");
+  auto matFile = std::make_unique<TFile>(
+      (localization::PROJECT_SOURCE_DIR + "/datafiles/cr_flux/res_matrix.root").c_str(), "open");
   Utils::ResolutionModel model{matFile->Get<TList>("parList_FS")};
 
   unsigned long long nEvents_data = 1000000, nEvents_mc = 5000000;

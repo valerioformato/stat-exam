@@ -1,0 +1,7 @@
+#include <string>
+
+namespace localization {
+const std::string PROJECT_SOURCE_DIR{"@PROJECT_SOURCE_DIR@"};
+const std::string PROJECT_BINARY_DIR{"@PROJECT_BINARY_DIR@"};
+const std::string PROJECT_INSTALL_PREFIX{"@PROJECT_INSTALL_PREFIX@"};
+} // namespace localization
