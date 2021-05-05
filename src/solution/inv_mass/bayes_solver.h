@@ -19,6 +19,8 @@ public:
   void SetPrior(TH1D *prior) { m_prior = std::make_shared<TH1D>(*prior); }
   void InitFlatPrior();
 
+  std::shared_ptr<TH1D> GetUnfolded() { return m_unfolded; }
+
 private:
   std::shared_ptr<TH2D> m_resolution_matrix = nullptr;
   std::shared_ptr<TH1D> m_measured = nullptr;

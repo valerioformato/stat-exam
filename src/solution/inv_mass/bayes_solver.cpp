@@ -4,6 +4,7 @@
 
 // external headers
 #include <fmt/format.h>
+#include <iostream>
 
 namespace Solvers {
 
@@ -35,8 +36,8 @@ void Bayes::Unfold() {
   for (int i = -1; i < m_unfolded->GetNbinsX() + 1; i++) {
     double num = 0, den = 0, err = 0;
 
-    // cout << "=================================================================" << endl;
-    // cout << "X bin " << i << "  R = " << m_unfolded->GetBinCenter(i+1) << endl;
+    // std::cout << "=================================================================" << std::endl;
+    // std::cout << "X bin " << i << "  X = " << m_unfolded->GetBinCenter(i+1) << std::endl;
 
     for (int j = -1; j < m_bayes_matrix->GetNbinsY() + 1; j++) {
       num += m_bayes_matrix->GetBinContent(m_bayes_matrix->GetBin(i + 1, j + 1)) * m_measured->GetBinContent(j + 1);
@@ -46,15 +47,17 @@ void Bayes::Unfold() {
           pow(m_bayes_matrix->GetBinContent(m_bayes_matrix->GetBin(i + 1, j + 1)) * m_measured->GetBinError(j + 1), 2);
 
       // printf("%03i ", j);
-      // cout << m_bayes_matrix->GetBinContent( m_bayes_matrix->GetBin(i+1,j+1) ) << " * " <<
-      // m_measured->GetBinContent(j+1) << " +     ("
-      // << m_bayes_matrix->GetBinContent( m_bayes_matrix->GetBin(i+1,j+1) )*m_measured->GetBinContent(j+1) << ")" <<
-      // endl;
+      // std::cout << m_bayes_matrix->GetBinContent(m_bayes_matrix->GetBin(i + 1, j + 1)) << " * "
+      //           << m_measured->GetBinContent(j + 1) << " +     ("
+      //           << m_bayes_matrix->GetBinContent(m_bayes_matrix->GetBin(i + 1, j + 1)) *
+      //                  m_measured->GetBinContent(j + 1)
+      //           << ")" << std::endl;
     }
 
-    // cout << " = " << num << " +- " << sqrt(err) << "  -> / " << den << " = " << (den>0 ? num/den : 0) << endl;
-    // cout << "=================================================================" << endl;
-    // cout << endl;
+    // std::cout << " = " << num << " +- " << sqrt(err) << "  -> / " << den << " = " << (den > 0 ? num / den : 0)
+    //           << std::endl;
+    // std::cout << "=================================================================" << std::endl;
+    // std::cout << std::endl;
 
     if (den) {
       m_unfolded->SetBinContent(i + 1, num / den);
@@ -126,6 +129,7 @@ void Bayes::NormalizeResMatrix() {
     for (int ibiny = -1; ibiny < m_resolution_matrix->GetNbinsY() + 1; ibiny++) {
       int globalbin = m_resolution_matrix->GetBin(ibinx + 1, ibiny + 1);
       m_resolution_matrix->SetBinContent(globalbin, m_resolution_matrix->GetBinContent(globalbin) / norm);
+      // fmt::print("rm({}, {}) = {}\n", ibinx + 1, ibiny + 1, m_resolution_matrix->GetBinContent(globalbin));
     }
   }
 

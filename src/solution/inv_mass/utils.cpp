@@ -3,9 +3,10 @@
 
 // c++ headers
 #include <numeric>
+#include <iostream>
 
 namespace Utils {
-void InitConstants() { std::iota(begin(binning), end(binning), (max_mass - min_mass) / (binning.size() - 1)); }
+
 
 void DivideByBinWidth(TH1D *histo) {
   for (Int_t i = -1; i < histo->GetNbinsX() + 1; i++)
