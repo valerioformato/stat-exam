@@ -1,1 +1,2 @@
 add_subdirectory(generation)
+add_subdirectory(solution)

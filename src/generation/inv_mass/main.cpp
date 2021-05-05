@@ -17,10 +17,10 @@
 #include <memory>
 #include <random>
 
-double AngRes(double E) {
+double AngRes(double p) {
   // in mrad
-  double t1 = 18.25 / sqrt(E);
-  double t2 = 1.1;
+  double t1 = 1.5 / sqrt(p);
+  double t2 = 0.5;
 
   // in rad
   return 1e-3 * sqrt(t1 * t1 + t2 * t2);
@@ -48,6 +48,7 @@ int main(int argc, char const *argv[]) {
   mc_tree->Branch("gen_muon2", gen_muon2, "gen_muon2[4]/F");
 
   float BMass = 5.6;
+  float BWidth = 0.15;
   float sqrts = 1300.;
   float pMass = 0.938;
   float muMass = 0.1;
@@ -58,7 +59,7 @@ int main(int argc, char const *argv[]) {
   Utils::ResolutionModel model;
 
   unsigned long long nEvents_data = 10000, nEvents_mc = 100000;
-  float bg_frac_data = 0.7;
+  float bg_frac_data = 0.9;
   // float bg_frac_data = 0.0;
 
   int nBkg = gRandom->Poisson(nEvents_data * bg_frac_data);
@@ -113,9 +114,14 @@ int main(int argc, char const *argv[]) {
       event.jets.push_back(*(evGen->GetDecay(2 + ij)));
 
     for (auto &muon : event.muons) {
+      float gen_momentum = muon.Vect().Mag();
       float meas_momentum = model(muon.Vect().Mag());
       // muon.SetTheta(muon.Theta() * gRandom->Gaus(1, AngRes(muon.E())));
-      muon.SetE(sqrt(muMass * muMass + meas_momentum * meas_momentum));
+      // muon.SetE(sqrt(muMass * muMass + meas_momentum * meas_momentum));
+      TVector3 p = muon.Vect();
+      p *= meas_momentum / gen_momentum;
+      // p.SetTheta(p.Theta() * gRandom->Gaus(1, AngRes(muon.E())));
+      muon.SetVectM(p, muMass);
     }
     for (auto &jet : event.jets) {
       jet.SetE(jet.E() * gRandom->Gaus(1, jRes));
@@ -139,7 +145,7 @@ int main(int argc, char const *argv[]) {
 
     const int nP = 1 + nJets;
     double masses[nP];
-    masses[0] = BMass;
+    masses[0] = gRandom->Gaus(BMass, BWidth);
     for (int ij = 0; ij < nJets; ij++)
       masses[1 + ij] = 3.;
 
@@ -156,24 +162,40 @@ int main(int argc, char const *argv[]) {
     event.muons.push_back(*(evGen->GetDecay(0)));
     event.muons.push_back(*(evGen->GetDecay(1)));
 
-    if ((event.muons[0] + event.muons[1]).Mag() > 10) {
+    double gen_mass = (event.muons[0] + event.muons[1]).Mag();
+
+    if (gen_mass > 10) {
       iEv--;
       continue;
     }
 
+    std::string debug = "";
     for (auto &muon : event.muons) {
+      float gen_momentum = muon.Vect().Mag();
       float meas_momentum = model(muon.Vect().Mag());
 
-      // fmt::print("{} -> {}\n", muon.Vect().Mag(), meas_momentum);
+      debug += fmt::format("{} -> {}\n", muon.Vect().Mag(), meas_momentum);
 
       // muon.SetTheta(muon.Theta() * gRandom->Gaus(1, AngRes(muon.E())));
-      muon.SetE(sqrt(muMass * muMass + meas_momentum * meas_momentum));
+      // muon.SetE(sqrt(muMass * muMass + meas_momentum * meas_momentum));
+      TVector3 p = muon.Vect();
+      p *= meas_momentum / gen_momentum;
+      p.SetTheta(p.Theta() * gRandom->Gaus(1, AngRes(muon.E())));
+      muon.SetVectM(p, muMass);
     }
     for (auto &jet : event.jets) {
       jet.SetE(jet.E() * gRandom->Gaus(1, jRes));
     }
 
     events.push_back(event);
+
+    double meas_mass = (event.muons[0] + event.muons[1]).Mag();
+    if (meas_mass < 0) {
+      fmt::print("- Gen {} vs Meas {}\n{}", gen_mass, meas_mass, debug);
+      (event.muons[0] + event.muons[1]).Print();
+    } else if (meas_mass > 10) {
+      fmt::print("+ Gen {} vs Meas {}\n{}", gen_mass, meas_mass, debug);
+    }
 
     hMass->Fill((event.muons[0] + event.muons[1]).Mag());
   }
@@ -225,9 +247,13 @@ int main(int argc, char const *argv[]) {
     gen_events.push_back(event);
 
     for (auto &muon : event.muons) {
+      float gen_momentum = muon.Vect().Mag();
       float meas_momentum = model(muon.Vect().Mag());
       // muon.SetTheta(muon.Theta() * gRandom->Gaus(1, AngRes(muon.E())));
-      muon.SetE(sqrt(muMass * muMass + meas_momentum * meas_momentum));
+      // muon.SetE(sqrt(muMass * muMass + meas_momentum * meas_momentum));
+      TVector3 p = muon.Vect();
+      p *= meas_momentum / gen_momentum;
+      muon.SetVectM(p, muMass);
     }
     for (auto &jet : event.jets) {
       jet.SetE(jet.E() * gRandom->Gaus(1, jRes));
@@ -250,11 +276,11 @@ int main(int argc, char const *argv[]) {
 
   outFile_data->cd();
   data_tree->Write();
-  // hMass->Write();
+  hMass->Write();
 
   outFile_mc->cd();
   mc_tree->Write();
-  // hMass_mc->Write();
+  hMass_mc->Write();
 
   return 0;
 }
