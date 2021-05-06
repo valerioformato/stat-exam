@@ -65,7 +65,7 @@ void Bayes::Unfold(unsigned int max_iterations, double threshold) {
 
     if (!m_unfolded) {
       m_unfolded = std::make_shared<TH1D>(*m_prior);
-      m_unfolded->SetName("m_unfolded");
+      m_unfolded->SetName("m_unfolded_bayes");
     }
     m_unfolded->Reset();
 

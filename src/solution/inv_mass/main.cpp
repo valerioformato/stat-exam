@@ -6,6 +6,7 @@
 #include "svd_solver.h"
 
 // ROOT headers
+#include <TCanvas.h>
 #include <TF1.h>
 #include <TFile.h>
 #include <TLorentzVector.h>
@@ -30,10 +31,11 @@ int main(int argc, char const *argv[]) {
       fmt::format("{}/datafiles/solution/inv_mass/im_mc.root", localization::PROJECT_SOURCE_DIR).c_str(), "open");
   TTree *tree_mc = inFile_mc->Get<TTree>("Data");
 
-  auto data = std::make_shared<TH1D>("data", "m (GeV);Counts", Utils::binning.size() - 1, Utils::binning.data());
+  auto data = std::make_shared<TH1D>("data", ";m (GeV);Counts", Utils::binning.size() - 1, Utils::binning.data());
+  data->SetLineColor(2);
 
   auto smearing_matrix =
-      std::make_shared<TH2D>("smearing_matrix", "m_{gen} (GeV); m_{meas} (GeV)", Utils::binning.size() - 1,
+      std::make_shared<TH2D>("smearing_matrix", ";m_{gen} (GeV); m_{meas} (GeV)", Utils::binning.size() - 1,
                              Utils::binning.data(), Utils::binning.size() - 1, Utils::binning.data());
 
   // 4-vectors are stored with the convention
@@ -63,6 +65,9 @@ int main(int argc, char const *argv[]) {
     smearing_matrix->Fill(gen_mass, mass);
   }
 
+  auto cc = std::make_unique<TCanvas>("canv", "", 0, 0, 1200 + 4, 800 + 28);
+  cc->Print("results.pdf[");
+
   // Bayes
   Solvers::Bayes bayes_solver{data, smearing_matrix};
   bayes_solver.InitFlatPrior();
@@ -76,12 +81,23 @@ int main(int argc, char const *argv[]) {
   fmt::print(" -- Bayes result: Mean = {:5.3f}; Sigma = {:5.3f}; Signal events = {:5.3f}\n",
              fit_function->GetParameter(1), fit_function->GetParameter(2),
              sqrt(2 * M_PI) * fit_function->GetParameter(0) * fit_function->GetParameter(2) / data->GetBinWidth(0));
-
-
+  data->Draw("E");
+  bayes_result->Draw("E same");
+  cc->Print("results.pdf");
 
   // SVD
   Solvers::SVD svd_solver{data, smearing_matrix};
-  svd_solver.Unfold();
+  svd_solver.Unfold(40);
+  auto svd_result = svd_solver.GetUnfolded();
+  svd_result->Fit(fit_function.get(), "", "", 3, 8);
+  fmt::print(" -- SVD result: Mean = {:5.3f}; Sigma = {:5.3f}; Signal events = {:5.3f}\n",
+             fit_function->GetParameter(1), fit_function->GetParameter(2),
+             sqrt(2 * M_PI) * fit_function->GetParameter(0) * fit_function->GetParameter(2) / data->GetBinWidth(0));
+  data->Draw("E");
+  svd_result->Draw("E same");
+  cc->Print("results.pdf");
+
+  cc->Print("results.pdf]");
 
   auto outFile = std::make_unique<TFile>("test.root", "recreate");
   outFile->cd();
