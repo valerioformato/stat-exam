@@ -72,28 +72,12 @@ void Bayes::Unfold(unsigned int max_iterations, double threshold) {
     for (int i = -1; i < m_unfolded->GetNbinsX() + 1; i++) {
       double num = 0, den = 0, err = 0;
 
-      // std::cout << "=================================================================" << std::endl;
-      // std::cout << "X bin " << i << "  X = " << m_unfolded->GetBinCenter(i+1) << std::endl;
-
       for (int j = -1; j < m_bayes_matrix->GetNbinsY() + 1; j++) {
         num += m_bayes_matrix->GetBinContent(m_bayes_matrix->GetBin(i + 1, j + 1)) * m_measured->GetBinContent(j + 1);
         den += m_resolution_matrix->GetBinContent(m_resolution_matrix->GetBin(i + 1, j + 1));
-        // err += pow( m_bayes_matrix->GetBinContent(m_bayes_matrix->GetBin(i+1,j+1))*m_measured->GetBinError(j+1), 1 );
         err += pow(m_bayes_matrix->GetBinContent(m_bayes_matrix->GetBin(i + 1, j + 1)) * m_measured->GetBinError(j + 1),
                    2);
-
-        // printf("%03i ", j);
-        // std::cout << m_bayes_matrix->GetBinContent(m_bayes_matrix->GetBin(i + 1, j + 1)) << " * "
-        //           << m_measured->GetBinContent(j + 1) << " +     ("
-        //           << m_bayes_matrix->GetBinContent(m_bayes_matrix->GetBin(i + 1, j + 1)) *
-        //                  m_measured->GetBinContent(j + 1)
-        //           << ")" << std::endl;
       }
-
-      // std::cout << " = " << num << " +- " << sqrt(err) << "  -> / " << den << " = " << (den > 0 ? num / den : 0)
-      //           << std::endl;
-      // std::cout << "=================================================================" << std::endl;
-      // std::cout << std::endl;
 
       if (den) {
         m_unfolded->SetBinContent(i + 1, num / den);
@@ -134,7 +118,7 @@ void Bayes::BuildBayesMatrix() {
   NormalizeResMatrix();
 
   if (!m_bayes_matrix) {
-    m_bayes_matrix = std::make_shared<TH2D>(*m_resolution_matrix);
+    m_bayes_matrix = std::make_unique<TH2D>(*m_resolution_matrix);
     m_bayes_matrix->SetName("m_bayes_matrix");
   }
   m_bayes_matrix->Reset();
@@ -154,10 +138,6 @@ void Bayes::BuildBayesMatrix() {
 
       double s =
           m_resolution_matrix->GetBinContent(m_resolution_matrix->GetBin(i + 1, j + 1)) * m_prior->GetBinContent(i + 1);
-      // double ls = 0;
-      // for (int k = -1; k < m_resolution_matrix->GetNbinsX() + 1; k++)
-      //   ls += m_resolution_matrix->GetBinContent(m_resolution_matrix->GetBin(k + 1, j + 1)) *
-      //         m_prior->GetBinContent(k + 1);
 
       if (prob_norms[j + 1])
         m_bayes_matrix->SetBinContent(m_bayes_matrix->GetBin(i + 1, j + 1), s / prob_norms[j + 1]);
@@ -201,7 +181,8 @@ bool Bayes::IsResMatrixNormalized() {
     for (int j = -1; j < m_resolution_matrix->GetNbinsY() + 1; j++)
       sum += m_resolution_matrix->GetBinContent(m_resolution_matrix->GetBin(i + 1, j + 1));
     if (sum > 1.0000001) {
-      fmt::print("Warning: Resolution matrix is not normalized.\nColumn {} has sum = {}\n", i + 1, sum);
+      fmt::print("{:<10} Resolution matrix is not normalized.\n", "Warning:"); 
+      fmt::print("{:<10} Column {} has sum = {}\n", "", i + 1, sum);
       return false;
     }
   }
@@ -210,7 +191,7 @@ bool Bayes::IsResMatrixNormalized() {
 }
 
 void Bayes::InitFlatPrior() {
-  m_prior = std::make_shared<TH1D>("m_prior", "", m_resolution_matrix->GetXaxis()->GetXbins()->GetSize() - 1,
+  m_prior = std::make_unique<TH1D>("m_prior", "", m_resolution_matrix->GetXaxis()->GetXbins()->GetSize() - 1,
                                    m_resolution_matrix->GetXaxis()->GetXbins()->GetArray());
 
   for (int ib = 0; ib < m_prior->GetNbinsX(); ib++) {
