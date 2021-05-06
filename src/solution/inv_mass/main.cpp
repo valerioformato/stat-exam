@@ -1,7 +1,9 @@
 // our headers
-#include "bayes_solver.h"
 #include "localization.h"
 #include "utils.h"
+
+#include "bayes_solver.h"
+#include "svd_solver.h"
 
 // ROOT headers
 #include <TF1.h>
@@ -74,6 +76,12 @@ int main(int argc, char const *argv[]) {
   fmt::print(" -- Bayes result: Mean = {:5.3f}; Sigma = {:5.3f}; Signal events = {:5.3f}\n",
              fit_function->GetParameter(1), fit_function->GetParameter(2),
              sqrt(2 * M_PI) * fit_function->GetParameter(0) * fit_function->GetParameter(2) / data->GetBinWidth(0));
+
+
+
+  // SVD
+  Solvers::SVD svd_solver{data, smearing_matrix};
+  svd_solver.Unfold();
 
   auto outFile = std::make_unique<TFile>("test.root", "recreate");
   outFile->cd();

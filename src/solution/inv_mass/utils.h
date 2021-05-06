@@ -3,6 +3,9 @@
 
 // ROOT headers
 #include <TH1D.h>
+#include <TH2D.h>
+#include <TVectorD.h>
+#include <TMatrixD.h>
 
 // c++ headers
 #include <array>
@@ -18,5 +21,8 @@ static void InitConstants() {
 
 void DivideByBinWidth(TH1D *histo);
 void MultiplyByBinWidth(TH1D *histo);
+
+TVectorD* HistoToVector(TH1D* histo);
+TMatrixD* HistoToMatrix(TH2D* histo);
 } // namespace Utils
 #endif

@@ -1,5 +1,5 @@
 set(IMSources main.cpp utils.cpp)
-set(IMSolvers bayes_solver.cpp)
+set(IMSolvers bayes_solver.cpp svd_solver.cpp)
 
 add_executable(im_solution ${IMSources} ${IMSolvers})
 target_include_directories(im_solution PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
