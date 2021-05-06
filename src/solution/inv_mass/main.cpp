@@ -4,6 +4,7 @@
 #include "utils.h"
 
 // ROOT headers
+#include <TF1.h>
 #include <TFile.h>
 #include <TLorentzVector.h>
 #include <TTree.h>
@@ -63,14 +64,21 @@ int main(int argc, char const *argv[]) {
   // Bayes
   Solvers::Bayes bayes_solver{data, smearing_matrix};
   bayes_solver.InitFlatPrior();
-  bayes_solver.Unfold();
+  bayes_solver.Unfold(20, 1e-3);
 
-  auto result = bayes_solver.GetUnfolded();
+  // Bayes: check result
+  auto fit_function = std::make_unique<TF1>("fit_function", "gaus(0) + pol0(3)", 0, 10);
+  fit_function->SetParameters(1, 1, 1, 1);
+  auto bayes_result = bayes_solver.GetUnfolded();
+  bayes_result->Fit(fit_function.get(), "", "", 3, 8);
+  fmt::print(" -- Bayes result: Mean = {:5.3f}; Sigma = {:5.3f}; Signal events = {:5.3f}\n",
+             fit_function->GetParameter(1), fit_function->GetParameter(2),
+             sqrt(2 * M_PI) * fit_function->GetParameter(0) * fit_function->GetParameter(2) / data->GetBinWidth(0));
 
   auto outFile = std::make_unique<TFile>("test.root", "recreate");
   outFile->cd();
   data->Write("hMeasured");
-  result->Write("hUnfolded_bayes");
+  bayes_result->Write("hUnfolded_bayes");
   outFile->Close();
 
   return 0;

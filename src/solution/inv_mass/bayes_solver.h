@@ -13,9 +13,10 @@ public:
       : m_measured{measured}, m_resolution_matrix{resolution_matrix} {};
 
   bool IsResMatrixNormalized();
-  void Unfold();
+  void Unfold(unsigned int max_iterations = 5, double threshold = 1);
 
   void SetCustomSmoother(std::function<void(TH1D *)> smoother) { m_smoother = smoother; }
+  void SetCustomConvergenceCheck(std::function<double(TH1D *, TH1D *)> comparator) { m_histo_comparator = comparator; }
   void SetPrior(TH1D *prior) { m_prior = std::make_shared<TH1D>(*prior); }
   void InitFlatPrior();
 
@@ -30,6 +31,7 @@ private:
   std::shared_ptr<TH2D> m_bayes_matrix = nullptr;
 
   std::function<void(TH1D *)> m_smoother;
+  std::function<double(TH1D *, TH1D *)> m_histo_comparator;
 
   bool CheckBinning();
 

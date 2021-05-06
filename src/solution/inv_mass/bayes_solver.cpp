@@ -2,68 +2,124 @@
 #include "bayes_solver.h"
 #include "utils.h"
 
+// ROOT headers
+#include <TCanvas.h>
+
 // external headers
 #include <fmt/format.h>
 #include <iostream>
 
 namespace Solvers {
 
-void Bayes::Unfold() {
+void Bayes::Unfold(unsigned int max_iterations, double threshold) {
 
   if (!CheckBinning()) {
     return;
   }
 
-  // first step: smooth the prior
-  SmoothPrior();
+  // default comparison function for histograms. Slightly adapted from
+  // https://stats.stackexchange.com/questions/184101/comparing-two-histograms-using-chi-square-distance
+  if (!m_histo_comparator) {
+    m_histo_comparator = [](TH1D *h1, TH1D *h2) {
+      double chi2 = 0;
+      unsigned int count = 0;
+      for (unsigned int i = 0; i < h1->GetNbinsX(); i++) {
+        if (h1->GetBinError(i + 1) != 0 || h2->GetBinError(i + 1) != 0) {
+          count++;
+          chi2 += 0.5 * pow(h1->GetBinContent(i + 1) - h2->GetBinContent(i + 1), 2) /
+                  (pow(h1->GetBinError(i + 1), 2) + pow(h2->GetBinError(i + 1), 2));
+        }
+      }
 
-  // The prior is a 'probability' so it has to be normalized. Since smoothing could change normalization, we force
-  // it here...
-  m_prior->Scale(
-      1. / (m_prior->GetSumOfWeights() + m_prior->GetBinContent(0) + m_prior->GetBinContent(m_prior->GetNbinsX() + 1)));
+      return chi2 / (count - 1);
+    };
+  }
 
   fmt::print("Starting unfolding procedure...\n");
 
-  // build the theta matrix
-  BuildBayesMatrix();
+  auto canv = std::make_unique<TCanvas>("c", "", 0, 0, 1200 + 4, 800 + 28);
+  canv->Print("debug.pdf[");
 
-  if (!m_unfolded) {
-    m_unfolded = std::make_shared<TH1D>(*m_prior);
-    m_unfolded->SetName("m_unfolded");
-  }
-  m_unfolded->Reset();
+  for (unsigned int iter = 0; iter < max_iterations; iter++) {
+    TH1D *old_unfolded = nullptr;
 
-  for (int i = -1; i < m_unfolded->GetNbinsX() + 1; i++) {
-    double num = 0, den = 0, err = 0;
+    if (iter > 0) {
+      // update prior
+      for (unsigned int ib = 0; ib < m_prior->GetNbinsX(); ib++) {
+        m_prior->SetBinContent(ib + 1, m_unfolded->GetBinContent(ib + 1));
+      }
 
-    // std::cout << "=================================================================" << std::endl;
-    // std::cout << "X bin " << i << "  X = " << m_unfolded->GetBinCenter(i+1) << std::endl;
-
-    for (int j = -1; j < m_bayes_matrix->GetNbinsY() + 1; j++) {
-      num += m_bayes_matrix->GetBinContent(m_bayes_matrix->GetBin(i + 1, j + 1)) * m_measured->GetBinContent(j + 1);
-      den += m_resolution_matrix->GetBinContent(m_resolution_matrix->GetBin(i + 1, j + 1));
-      // err += pow( m_bayes_matrix->GetBinContent(m_bayes_matrix->GetBin(i+1,j+1))*m_measured->GetBinError(j+1), 1 );
-      err +=
-          pow(m_bayes_matrix->GetBinContent(m_bayes_matrix->GetBin(i + 1, j + 1)) * m_measured->GetBinError(j + 1), 2);
-
-      // printf("%03i ", j);
-      // std::cout << m_bayes_matrix->GetBinContent(m_bayes_matrix->GetBin(i + 1, j + 1)) << " * "
-      //           << m_measured->GetBinContent(j + 1) << " +     ("
-      //           << m_bayes_matrix->GetBinContent(m_bayes_matrix->GetBin(i + 1, j + 1)) *
-      //                  m_measured->GetBinContent(j + 1)
-      //           << ")" << std::endl;
+      old_unfolded = static_cast<TH1D *>(m_unfolded->Clone("old_unfolded"));
     }
 
-    // std::cout << " = " << num << " +- " << sqrt(err) << "  -> / " << den << " = " << (den > 0 ? num / den : 0)
-    //           << std::endl;
-    // std::cout << "=================================================================" << std::endl;
-    // std::cout << std::endl;
+    // first step: smooth the prior
+    SmoothPrior();
 
-    if (den) {
-      m_unfolded->SetBinContent(i + 1, num / den);
-      m_unfolded->SetBinError(i + 1, sqrt(err) / den);
+    // The prior is a 'probability' so it has to be normalized. Since smoothing could change normalization, we force
+    // it here...
+    m_prior->Scale(1. / (m_prior->GetSumOfWeights() + m_prior->GetBinContent(0) +
+                         m_prior->GetBinContent(m_prior->GetNbinsX() + 1)));
+
+    // build the theta matrix
+    BuildBayesMatrix();
+
+    if (!m_unfolded) {
+      m_unfolded = std::make_shared<TH1D>(*m_prior);
+      m_unfolded->SetName("m_unfolded");
     }
-  }
+    m_unfolded->Reset();
+
+    for (int i = -1; i < m_unfolded->GetNbinsX() + 1; i++) {
+      double num = 0, den = 0, err = 0;
+
+      // std::cout << "=================================================================" << std::endl;
+      // std::cout << "X bin " << i << "  X = " << m_unfolded->GetBinCenter(i+1) << std::endl;
+
+      for (int j = -1; j < m_bayes_matrix->GetNbinsY() + 1; j++) {
+        num += m_bayes_matrix->GetBinContent(m_bayes_matrix->GetBin(i + 1, j + 1)) * m_measured->GetBinContent(j + 1);
+        den += m_resolution_matrix->GetBinContent(m_resolution_matrix->GetBin(i + 1, j + 1));
+        // err += pow( m_bayes_matrix->GetBinContent(m_bayes_matrix->GetBin(i+1,j+1))*m_measured->GetBinError(j+1), 1 );
+        err += pow(m_bayes_matrix->GetBinContent(m_bayes_matrix->GetBin(i + 1, j + 1)) * m_measured->GetBinError(j + 1),
+                   2);
+
+        // printf("%03i ", j);
+        // std::cout << m_bayes_matrix->GetBinContent(m_bayes_matrix->GetBin(i + 1, j + 1)) << " * "
+        //           << m_measured->GetBinContent(j + 1) << " +     ("
+        //           << m_bayes_matrix->GetBinContent(m_bayes_matrix->GetBin(i + 1, j + 1)) *
+        //                  m_measured->GetBinContent(j + 1)
+        //           << ")" << std::endl;
+      }
+
+      // std::cout << " = " << num << " +- " << sqrt(err) << "  -> / " << den << " = " << (den > 0 ? num / den : 0)
+      //           << std::endl;
+      // std::cout << "=================================================================" << std::endl;
+      // std::cout << std::endl;
+
+      if (den) {
+        m_unfolded->SetBinContent(i + 1, num / den);
+        m_unfolded->SetBinError(i + 1, sqrt(err) / den);
+      }
+    }
+
+    { // plotting this iteration status
+      m_measured->SetLineColor(kRed);
+      m_measured->Draw("E");
+      m_unfolded->Draw("E same");
+      canv->Print("debug.pdf");
+    }
+
+    if (iter > 0) {
+      double conv_check = m_histo_comparator(m_unfolded.get(), old_unfolded);
+      fmt::print(" -- Iteration {}, convergence value at {}\n", iter, conv_check);
+      if (conv_check < threshold) {
+        fmt::print("    Successfully converged\n");
+        break;
+      }
+    }
+
+  } // end iteration
+
+  canv->Print("debug.pdf]");
 }
 
 void Bayes::BuildBayesMatrix() {
@@ -84,7 +140,7 @@ void Bayes::BuildBayesMatrix() {
   m_bayes_matrix->Reset();
 
   // precompute denominators in bayes theorem
-  std::vector<double> prob_norms(m_bayes_matrix->GetNbinsY() + 1, 0);
+  std::vector<double> prob_norms(m_bayes_matrix->GetNbinsY() + 2, 0);
   for (int j = -1; j < m_bayes_matrix->GetNbinsY() + 1; j++) {
     for (int i = -1; i < m_bayes_matrix->GetNbinsX() + 1; i++) {
       prob_norms[j + 1] +=
