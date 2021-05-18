@@ -34,6 +34,9 @@ void SVD::Unfold(unsigned int cutoff_index) {
   auto CT = *C;
   CT.Transpose(*C);
 
+  auto CinvT = Cinv;
+  CinvT.Transpose(Cinv);
+
   auto s = decomp.GetSig();
   auto d = uT * measured;
 
@@ -55,7 +58,7 @@ void SVD::Unfold(unsigned int cutoff_index) {
   TMatrixDDiag{z_tau_corr} = z_tau_err;
 
   auto w = Cinv * (decomp.GetV() * z_tau);
-  TMatrixD w_err_cov = Cinv * (decomp.GetV() * (z_tau_corr * (vT * CT)));
+  TMatrixD w_err_cov = Cinv * (decomp.GetV() * (z_tau_corr * (vT * CinvT)));
 
   RescaleOutput(w, w_err_cov);
 }

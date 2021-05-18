@@ -29,7 +29,7 @@ constexpr double GetMass(double A, double Z) {
   return mass;
 }
 
-constexpr double E2R(float EA, double A, double Z) {
+double E2R(float EA, double A, double Z) {
 
   /*------------------------------------------------*\
   |     Conversion from KinEnergy/N to Rigidity      |
@@ -41,7 +41,7 @@ constexpr double E2R(float EA, double A, double Z) {
   return R;
 }
 
-constexpr double R2E(float R, double A, double Z) {
+double R2E(float R, double A, double Z) {
 
   /*------------------------------------------------*\
   |     Conversion from Rigidity to KinEnergy/N      |
@@ -53,7 +53,7 @@ constexpr double R2E(float R, double A, double Z) {
   return EA;
 }
 
-constexpr double R2B(float R, double A, double Z) {
+double R2B(float R, double A, double Z) {
 
   /*------------------------------------------------*\
   |         Conversion from Rigidity to beta         |
@@ -64,7 +64,7 @@ constexpr double R2B(float R, double A, double Z) {
   return B;
 }
 
-constexpr double B2R(float B, double A, double Z) {
+double B2R(float B, double A, double Z) {
 
   /*------------------------------------------------*\
   |         Conversion from beta to Rigidity         |
@@ -75,7 +75,7 @@ constexpr double B2R(float B, double A, double Z) {
   return R;
 }
 
-constexpr double B2E(float B, double A, double Z) {
+double B2E(float B, double A, double Z) {
 
   /*------------------------------------------------*\
   |          Conversion from beta to Energy          |
@@ -84,7 +84,7 @@ constexpr double B2E(float B, double A, double Z) {
   return (double)GetMass(A, Z) / A * (1. / sqrt(1 - B * B) - 1);
 }
 
-constexpr double E2B(float EA, double A, double Z) {
+double E2B(float EA, double A, double Z) {
 
   /*------------------------------------------------*\
   |          Conversion from Energy to beta          |
